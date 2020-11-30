@@ -81,10 +81,10 @@
 #define TEMP_0_PIN                             9  // Analog Input
 
 #undef TEMP_1_PIN
-#define TEMP_1_PIN                            10  // Analog Input
+#define TEMP_1_PIN         11   // Analog Input
 
 #undef TEMP_BED_PIN
-#define TEMP_BED_PIN                          11  // Analog Input
+#define TEMP_BED_PIN       10   // Analog Input
 
 // SPI for Max6675 or Max31855 Thermocouple
 #undef MAX6675_SS_PIN

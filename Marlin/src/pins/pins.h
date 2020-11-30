@@ -1020,7 +1020,7 @@
 #endif
 #define FAN0_PIN FAN_PIN
 #ifndef FAN1_PIN
-  #define FAN1_PIN -1
+  #define FAN1_PIN RAMPS_D9_PIN
 #endif
 #ifndef FAN2_PIN
   #define FAN2_PIN -1
