@@ -37,12 +37,12 @@ void report_M92(const bool echo=true, const int8_t e=-1) {
     LOOP_L_N(i, E_STEPPERS) {
       if (e >= 0 && i != e) continue;
       if (echo) SERIAL_ECHO_START(); else SERIAL_CHAR(' ');
-      SERIAL_ECHOLNPAIR_P(PSTR(" M92 T"), (int)i,
+      SERIAL_ECHOLNPAIR_P(PSTR(" M92 T"), i,
                         SP_E_STR, VOLUMETRIC_UNIT(planner.settings.axis_steps_per_mm[E_AXIS_N(i)]));
     }
   #endif
 
-  UNUSED_E(e);
+  UNUSED(e);
 }
 
 /**
@@ -64,13 +64,10 @@ void GcodeSuite::M92() {
   if (target_extruder < 0) return;
 
   // No arguments? Show M92 report.
-  if (!parser.seen("XYZE"
-    #if ENABLED(MAGIC_NUMBERS_GCODE)
-      "HL"
-    #endif
-  )) return report_M92(true, target_extruder);
+  if (!parser.seen("XYZE" TERN_(MAGIC_NUMBERS_GCODE, "HL")))
+    return report_M92(true, target_extruder);
 
-  LOOP_XYZE(i) {
+  LOOP_LOGICAL_AXES(i) {
     if (parser.seenval(axis_codes[i])) {
       if (i == E_AXIS) {
         const float value = parser.value_per_axis_units((AxisEnum)(E_AXIS_N(target_extruder)));

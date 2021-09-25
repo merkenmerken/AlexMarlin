@@ -30,34 +30,6 @@ class __FlashStringHelper;
 typedef const __FlashStringHelper *progmem_str;
 
 //
-// Enumerated axis indices
-//
-//  - X_AXIS, Y_AXIS, and Z_AXIS should be used for axes in Cartesian space
-//  - A_AXIS, B_AXIS, and C_AXIS should be used for Steppers, corresponding to XYZ on Cartesians
-//  - X_HEAD, Y_HEAD, and Z_HEAD should be used for Steppers on Core kinematics
-//
-enum AxisEnum : uint8_t {
-  X_AXIS   = 0, A_AXIS = 0,
-  Y_AXIS   = 1, B_AXIS = 1,
-  Z_AXIS   = 2, C_AXIS = 2,
-  E_AXIS   = 3,
-  X_HEAD   = 4, Y_HEAD = 5, Z_HEAD = 6,
-  E0_AXIS  = 3,
-  E1_AXIS, E2_AXIS, E3_AXIS, E4_AXIS, E5_AXIS, E6_AXIS, E7_AXIS,
-  ALL_AXES = 0xFE, NO_AXIS = 0xFF
-};
-
-//
-// Loop over XYZE axes
-//
-#define LOOP_XYZ(VAR) LOOP_S_LE_N(VAR, X_AXIS, Z_AXIS)
-#define LOOP_XYZE(VAR) LOOP_S_LE_N(VAR, X_AXIS, E_AXIS)
-#define LOOP_XYZE_N(VAR) LOOP_S_L_N(VAR, X_AXIS, XYZE_N)
-#define LOOP_ABC(VAR) LOOP_S_LE_N(VAR, A_AXIS, C_AXIS)
-#define LOOP_ABCE(VAR) LOOP_S_LE_N(VAR, A_AXIS, E_AXIS)
-#define LOOP_ABCE_N(VAR) LOOP_S_L_N(VAR, A_AXIS, XYZE_N)
-
-//
 // Conditional type assignment magic. For example...
 //
 // typename IF<(MYOPT==12), int, float>::type myvar;
@@ -68,21 +40,64 @@ template <class L, class R>
 struct IF<true, L, R> { typedef L type; };
 
 //
+// Enumerated axis indices
+//
+//  - X_AXIS, Y_AXIS, and Z_AXIS should be used for axes in Cartesian space
+//  - A_AXIS, B_AXIS, and C_AXIS should be used for Steppers, corresponding to XYZ on Cartesians
+//  - X_HEAD, Y_HEAD, and Z_HEAD should be used for Steppers on Core kinematics
+//
+enum AxisEnum : uint8_t {
+  X_AXIS = 0, A_AXIS = X_AXIS,
+  Y_AXIS = 1, B_AXIS = Y_AXIS,
+  Z_AXIS = 2, C_AXIS = Z_AXIS,
+  E_AXIS,
+  X_HEAD, Y_HEAD, Z_HEAD,
+  E0_AXIS = E_AXIS,
+  E1_AXIS, E2_AXIS, E3_AXIS, E4_AXIS, E5_AXIS, E6_AXIS, E7_AXIS,
+  ALL_AXES_ENUM = 0xFE, NO_AXIS_ENUM = 0xFF
+};
+
+//
+// Loop over axes
+//
+#define LOOP_ABC(VAR) LOOP_S_LE_N(VAR, A_AXIS, C_AXIS)
+#define LOOP_LINEAR_AXES(VAR) LOOP_S_L_N(VAR, X_AXIS, LINEAR_AXES)
+#define LOOP_LOGICAL_AXES(VAR) LOOP_S_L_N(VAR, X_AXIS, LOGICAL_AXES)
+#define LOOP_DISTINCT_AXES(VAR) LOOP_S_L_N(VAR, X_AXIS, DISTINCT_AXES)
+
+//
 // feedRate_t is just a humble float
 //
 typedef float feedRate_t;
 
+//
+// celsius_t is the native unit of temperature. Signed to handle a disconnected thermistor value (-14).
+// For more resolition (e.g., for a chocolate printer) this may later be changed to Celsius x 100
+//
+typedef int16_t celsius_t;
+typedef float celsius_float_t;
+
+//
+// On AVR pointers are only 2 bytes so use 'const float &' for 'const float'
+//
+#ifdef __AVR__
+  typedef const float & const_float_t;
+#else
+  typedef const float const_float_t;
+#endif
+typedef const_float_t const_feedRate_t;
+typedef const_float_t const_celsius_float_t;
+
 // Conversion macros
-#define MMM_TO_MMS(MM_M) feedRate_t(float(MM_M) / 60.0f)
-#define MMS_TO_MMM(MM_S) (float(MM_S) * 60.0f)
-#define MMS_SCALED(V)    ((V) * 0.01f * feedrate_percentage)
+#define MMM_TO_MMS(MM_M) feedRate_t(static_cast<float>(MM_M) / 60.0f)
+#define MMS_TO_MMM(MM_S) (static_cast<float>(MM_S) * 60.0f)
 
 //
 // Coordinates structures for XY, XYZ, XYZE...
 //
 
 // Helpers
-#define _RECIP(N) ((N) ? 1.0f / float(N) : 0.0f)
+#define _RECIP(N) ((N) ? 1.0f / static_cast<float>(N) : 0.0f)
 #define _ABS(N) ((N) < 0 ? -(N) : (N))
 #define _LS(N)  (N = (T)(uint32_t(N) << v))
 #define _RS(N)  (N = (T)(uint32_t(N) >> v))
@@ -184,8 +199,8 @@ struct XYval {
   FI void set(const T (&arr)[XY])                       { x = arr[0]; y = arr[1]; }
   FI void set(const T (&arr)[XYZ])                      { x = arr[0]; y = arr[1]; }
   FI void set(const T (&arr)[XYZE])                     { x = arr[0]; y = arr[1]; }
-  #if XYZE_N > XYZE
-    FI void set(const T (&arr)[XYZE_N])                 { x = arr[0]; y = arr[1]; }
+  #if DISTINCT_AXES > LOGICAL_AXES
+    FI void set(const T (&arr)[DISTINCT_AXES])          { x = arr[0]; y = arr[1]; }
   #endif
   FI void reset()                                       { x = y = 0; }
   FI T magnitude()                                const { return (T)sqrtf(x*x + y*y); }
@@ -199,8 +214,8 @@ struct XYval {
   FI XYval<int32_t>   asLong()                    const { return { int32_t(x), int32_t(y) }; }
   FI XYval<int32_t>   ROUNDL()                          { return { int32_t(LROUND(x)), int32_t(LROUND(y)) }; }
   FI XYval<int32_t>   ROUNDL()                    const { return { int32_t(LROUND(x)), int32_t(LROUND(y)) }; }
-  FI XYval<float>    asFloat()                          { return {   float(x),   float(y) }; }
-  FI XYval<float>    asFloat()                    const { return {   float(x),   float(y) }; }
+  FI XYval<float>    asFloat()                          { return { static_cast<float>(x), static_cast<float>(y) }; }
+  FI XYval<float>    asFloat()                    const { return { static_cast<float>(x), static_cast<float>(y) }; }
   FI XYval<float> reciprocal()                    const { return {  _RECIP(x),  _RECIP(y) }; }
   FI XYval<float>  asLogical()                    const { XYval<float> o = asFloat(); toLogical(o); return o; }
   FI XYval<float>   asNative()                    const { XYval<float> o = asFloat(); toNative(o);  return o; }
@@ -295,8 +310,8 @@ struct XYZval {
   FI void set(const T (&arr)[XY])                      { x = arr[0]; y = arr[1]; }
   FI void set(const T (&arr)[XYZ])                     { x = arr[0]; y = arr[1]; z = arr[2]; }
   FI void set(const T (&arr)[XYZE])                    { x = arr[0]; y = arr[1]; z = arr[2]; }
-  #if XYZE_N > XYZE
-    FI void set(const T (&arr)[XYZE_N])                { x = arr[0]; y = arr[1]; z = arr[2]; }
+  #if DISTINCT_AXES > XYZE
+    FI void set(const T (&arr)[DISTINCT_AXES])         { x = arr[0]; y = arr[1]; z = arr[2]; }
   #endif
   FI void reset()                                      { x = y = z = 0; }
   FI T magnitude()                               const { return (T)sqrtf(x*x + y*y + z*z); }
@@ -310,8 +325,8 @@ struct XYZval {
   FI XYZval<int32_t>  asLong()                   const { return { int32_t(x), int32_t(y), int32_t(z) }; }
   FI XYZval<int32_t>  ROUNDL()                         { return { int32_t(LROUND(x)), int32_t(LROUND(y)), int32_t(LROUND(z)) }; }
   FI XYZval<int32_t>  ROUNDL()                   const { return { int32_t(LROUND(x)), int32_t(LROUND(y)), int32_t(LROUND(z)) }; }
-  FI XYZval<float>   asFloat()                         { return {   float(x),   float(y),   float(z) }; }
-  FI XYZval<float>   asFloat()                   const { return {   float(x),   float(y),   float(z) }; }
+  FI XYZval<float>   asFloat()                         { return { static_cast<float>(x), static_cast<float>(y), static_cast<float>(z) }; }
+  FI XYZval<float>   asFloat()                   const { return { static_cast<float>(x), static_cast<float>(y), static_cast<float>(z) }; }
   FI XYZval<float> reciprocal()                  const { return {  _RECIP(x),  _RECIP(y),  _RECIP(z) }; }
   FI XYZval<float> asLogical()                   const { XYZval<float> o = asFloat(); toLogical(o); return o; }
   FI XYZval<float>  asNative()                   const { XYZval<float> o = asFloat(); toNative(o);  return o; }
@@ -410,8 +425,8 @@ struct XYZEval {
   FI void set(const T (&arr)[XY])                             { x = arr[0]; y = arr[1]; }
   FI void set(const T (&arr)[XYZ])                            { x = arr[0]; y = arr[1]; z = arr[2]; }
   FI void set(const T (&arr)[XYZE])                           { x = arr[0]; y = arr[1]; z = arr[2]; e = arr[3]; }
-  #if XYZE_N > XYZE
-    FI void set(const T (&arr)[XYZE_N])                       { x = arr[0]; y = arr[1]; z = arr[2]; e = arr[3]; }
+  #if DISTINCT_AXES > XYZE
+    FI void set(const T (&arr)[DISTINCT_AXES])                { x = arr[0]; y = arr[1]; z = arr[2]; e = arr[3]; }
   #endif
   FI XYZEval<T>          copy()                         const { return *this; }
   FI XYZEval<T>           ABS()                         const { return { T(_ABS(x)), T(_ABS(y)), T(_ABS(z)), T(_ABS(e)) }; }
@@ -421,8 +436,8 @@ struct XYZEval {
   FI XYZEval<int32_t>  asLong()                         const { return { int32_t(x), int32_t(y), int32_t(z), int32_t(e) }; }
   FI XYZEval<int32_t>  ROUNDL()                               { return { int32_t(LROUND(x)), int32_t(LROUND(y)), int32_t(LROUND(z)), int32_t(LROUND(e)) }; }
   FI XYZEval<int32_t>  ROUNDL()                         const { return { int32_t(LROUND(x)), int32_t(LROUND(y)), int32_t(LROUND(z)), int32_t(LROUND(e)) }; }
-  FI XYZEval<float>   asFloat()                               { return {   float(x),   float(y),   float(z),   float(e) }; }
-  FI XYZEval<float>   asFloat()                         const { return {   float(x),   float(y),   float(z),   float(e) }; }
+  FI XYZEval<float>   asFloat()                               { return { static_cast<float>(x), static_cast<float>(y), static_cast<float>(z), static_cast<float>(e) }; }
+  FI XYZEval<float>   asFloat()                         const { return { static_cast<float>(x), static_cast<float>(y), static_cast<float>(z), static_cast<float>(e) }; }
   FI XYZEval<float> reciprocal()                        const { return {  _RECIP(x),  _RECIP(y),  _RECIP(z),  _RECIP(e) }; }
   FI XYZEval<float> asLogical()                         const { XYZEval<float> o = asFloat(); toLogical(o); return o; }
   FI XYZEval<float>  asNative()                         const { XYZEval<float> o = asFloat(); toNative(o);  return o; }
@@ -501,4 +516,4 @@ struct XYZEval {
 #undef FI
 
 const xyze_char_t axis_codes { 'X', 'Y', 'Z', 'E' };
-#define XYZ_CHAR(A) ((char)('X' + A))
+#define AXIS_CHAR(A) ((char)('X' + A))
