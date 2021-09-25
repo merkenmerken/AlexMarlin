@@ -75,7 +75,8 @@
 #endif
 #if HOTENDS == 1
   #ifndef FAN1_PIN
-    #define FAN1_PIN                       P2_04
+    // #define FAN1_PIN                       P2_04
+    #define FAN1_PIN                       P1_28
   #endif
 #else
   #ifndef HEATER_1_PIN
@@ -83,10 +84,23 @@
   #endif
 #endif
 #ifndef FAN_PIN
-  #define FAN_PIN                          P2_03
+  // #define FAN_PIN                          P2_03
+  #define FAN_PIN                          P2_04
 #endif
 #ifndef HEATER_BED_PIN
   #define HEATER_BED_PIN                   P2_05
+#endif
+
+#ifndef BOARD_FAN_PIN
+  #define BOARD_FAN_PIN                    P2_03
+#endif
+
+#ifndef SPINDLE_LASER_PWM_PIN
+  #define SPINDLE_LASER_PWM_PIN           P2_00
+#endif
+
+#ifndef SPINDLE_LASER_ENA_PIN
+  #define SPINDLE_LASER_ENA_PIN           P1_26
 #endif
 
 //
